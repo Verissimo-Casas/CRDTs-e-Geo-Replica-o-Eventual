@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  redis-br:
+    image: redis:latest
+    container_name: redis-br
+    ports:
+      - "7001:6379"
+    networks:
+      - crdt-network
+
+  redis-eu:
+    image: redis:latest
+    container_name: redis-eu
+    ports:
+      - "7002:6379"
+    networks:
+      - crdt-network
+
+  redis-usa:
+    image: redis:latest
+    container_name: redis-usa
+    ports:
+      - "7003:6379"
+    networks:
+      - crdt-network
+
+  api-br:
+    build: ./api
+    container_name: api-br
+    environment:
+      - REDIS_HOST=redis-br
+      - REGION_NAME=Brasil
+      - REGION_IMG=https://flagcdn.com/w320/br.png
+      - ENABLE_HLL=true
+    ports:
+      - "3001:3000"
+    depends_on:
+      - redis-br
+    networks:
+      - crdt-network
+
+  api-eu:
+    build: ./api
+    container_name: api-eu
+    environment:
+      - REDIS_HOST=redis-eu
+      - REGION_NAME=Europa
+      - REGION_IMG=https://flagcdn.com/w320/eu.png
+      - ENABLE_HLL=true
+    ports:
+      - "3002:3000"
+    depends_on:
+      - redis-eu
+    networks:
+      - crdt-network
+
+  api-usa:
+    build: ./api
+    container_name: api-usa
+    environment:
+      - REDIS_HOST=redis-usa
+      - REGION_NAME=EUA
+      - REGION_IMG=https://flagcdn.com/w320/us.png
+      - ENABLE_HLL=true
+    ports:
+      - "3003:3000"
+    depends_on:
+      - redis-usa
+    networks:
+      - crdt-network
+
+  dashboard:
+    build: ./dashboard
+    container_name: dashboard
+    ports:
+      - "3000:3000"
+    depends_on:
+      - redis-br
+      - redis-eu
+      - redis-usa
+    networks:
+      - crdt-network
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - crdt-network
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3004:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - crdt-network
+
+networks:
+  crdt-network:
+    driver: bridge

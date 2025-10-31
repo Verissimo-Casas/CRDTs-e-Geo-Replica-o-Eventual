@@ -1,0 +1,17 @@
+{
+  "name": "crdt-demo-scripts",
+  "version": "1.0.0",
+  "description": "Scripts auxiliares para demo CRDT",
+  "scripts": {
+    "qr": "node generate_qr.js",
+    "qr:local": "node generate_qr.js --localhost",
+    "qr:ngrok": "node generate_qr.js --ngrok"
+  },
+  "dependencies": {
+    "qrcode-terminal": "^0.12.0"
+  },
+  "devDependencies": {},
+  "keywords": ["crdt", "demo", "qrcode"],
+  "author": "",
+  "license": "MIT"
+}

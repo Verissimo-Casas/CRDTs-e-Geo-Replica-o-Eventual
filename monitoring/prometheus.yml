@@ -1,0 +1,32 @@
+global:
+  scrape_interval: 1s
+  evaluation_interval: 1s
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'api-br'
+    static_configs:
+      - targets: ['api-br:3000']
+    metrics_path: '/metrics'
+
+  - job_name: 'api-eu'
+    static_configs:
+      - targets: ['api-eu:3000']
+    metrics_path: '/metrics'
+
+  - job_name: 'api-usa'
+    static_configs:
+      - targets: ['api-usa:3000']
+    metrics_path: '/metrics'
+
+  - job_name: 'dashboard'
+    static_configs:
+      - targets: ['dashboard:3000']
+    metrics_path: '/metrics'

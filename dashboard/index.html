@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRDT Demo - Dashboard</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+      color: white;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .header h1 {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .header p {
+      font-size: 1.1em;
+      opacity: 0.9;
+    }
+
+    .status-indicator {
+      display: inline-block;
+      padding: 12px 35px;
+      border-radius: 50px;
+      font-weight: bold;
+      font-size: 1.2em;
+      margin-top: 20px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    .status-converged {
+      background: #10b981;
+      box-shadow: 0 0 25px rgba(16, 185, 129, 0.6);
+    }
+
+    .status-divergent {
+      background: #f59e0b;
+      box-shadow: 0 0 25px rgba(245, 158, 11, 0.6);
+    }
+
+    .status-offline {
+      background: #ef4444;
+      box-shadow: 0 0 25px rgba(239, 68, 68, 0.6);
+    }
+
+    .regions-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 30px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .region-card {
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 30px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .region-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .region-card.offline {
+      opacity: 0.6;
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .region-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 25px;
+      border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 15px;
+    }
+
+    .region-name {
+      font-size: 1.8em;
+      font-weight: bold;
+    }
+
+    .region-status {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    .region-status.online {
+      background: #10b981;
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.8);
+    }
+
+    .region-status.offline {
+      background: #ef4444;
+      box-shadow: 0 0 12px rgba(239, 68, 68, 0.8);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(0.95); }
+    }
+
+    .stat {
+      margin: 18px 0;
+      padding: 18px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      transition: background 0.3s;
+    }
+
+    .stat:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .stat-label {
+      font-size: 0.9em;
+      opacity: 0.85;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+      font-size: 2.2em;
+      font-weight: bold;
+      color: #ffd700;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+    }
+
+    .stat-value.offline-text {
+      color: #ff6b6b;
+      font-size: 1.5em;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 50px;
+      opacity: 0.7;
+      font-size: 0.9em;
+    }
+
+    .footer p {
+      margin: 8px 0;
+    }
+
+    .last-update {
+      text-align: center;
+      margin-top: 25px;
+      opacity: 0.7;
+      font-size: 0.95em;
+      font-style: italic;
+    }
+
+    .ip-list-section {
+      max-width: 1200px;
+      margin: 40px auto;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 30px;
+      backdrop-filter: blur(10px);
+    }
+
+    .ip-list-section h2 {
+      font-size: 1.8em;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .ip-region {
+      margin-bottom: 30px;
+    }
+
+    .ip-region h3 {
+      font-size: 1.3em;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .ip-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    .ip-table th {
+      background: rgba(255, 255, 255, 0.15);
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .ip-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .ip-table tr:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .ip-badge {
+      display: inline-block;
+      background: rgba(16, 185, 129, 0.3);
+      color: #10b981;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.85em;
+      font-weight: bold;
+    }
+
+    .no-ips {
+      text-align: center;
+      padding: 20px;
+      opacity: 0.7;
+      font-style: italic;
+    }
+
+    /* Estilos para botões de teste */
+    .test-buttons-section {
+      max-width: 1200px;
+      margin: 40px auto;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 30px;
+      backdrop-filter: blur(10px);
+    }
+
+    .test-buttons-section h2 {
+      font-size: 1.8em;
+      margin-bottom: 20px;
+      text-align: center;
+      color: #ffd700;
+    }
+
+    .test-buttons-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 20px;
+    }
+
+    .test-button-card {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      padding: 20px;
+      transition: all 0.3s ease;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      cursor: pointer;
+    }
+
+    .test-button-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .test-button-title {
+      font-size: 1.2em;
+      font-weight: bold;
+      margin-bottom: 10px;
+      color: #ffd700;
+    }
+
+    .test-button-desc {
+      font-size: 0.9em;
+      opacity: 0.9;
+      margin-bottom: 15px;
+      line-height: 1.4;
+    }
+
+    .test-button-command {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      padding: 10px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85em;
+      color: #10b981;
+      word-break: break-all;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .test-button-run {
+      display: inline-block;
+      margin-top: 15px;
+      padding: 8px 16px;
+      background: #10b981;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+    }
+
+    .test-button-run:hover {
+      background: #059669;
+      transform: translateY(-1px);
+    }
+
+    @media (max-width: 768px) {
+      .header h1 {
+        font-size: 2em;
+      }
+      
+      .regions-container {
+        grid-template-columns: 1fr;
+      }
+      
+      .region-card {
+        padding: 20px;
+      }
+
+      .ip-table {
+        font-size: 0.85em;
+      }
+
+      .ip-table th,
+      .ip-table td {
+        padding: 8px 6px;
+      }
+    }
+
+    .test-buttons-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .test-button-card {
+      padding: 15px;
+    }
+
+    .test-button-title {
+      font-size: 1.1em;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🌍 CRDT Geo-Replication Demo</h1>
+    <p>Monitoramento em tempo real das regiões</p>
+    <div id="global-status" class="status-indicator">Carregando...</div>
+  </div>
+
+  <!-- Seção de Botões de Teste -->
+  <div class="test-buttons-section">
+    <h2>🧪 Scripts de Demonstração</h2>
+    <div class="test-buttons-grid">
+      <div class="test-button-card" onclick="showCommand('./scripts/demo-normal.sh')">
+        <div class="test-button-title">🚀 Demo Normal</div>
+        <div class="test-button-desc">Demonstra operação normal com likes distribuídos e convergência automática entre regiões.</div>
+        <div class="test-button-command">./scripts/demo-normal.sh</div>
+        <button class="test-button-run" onclick="copyCommand('./scripts/demo-normal.sh')">📋 Copiar Comando</button>
+      </div>
+
+      <div class="test-button-card" onclick="showCommand('./scripts/demo-partition.sh')">
+        <div class="test-button-title">🔥 Partição Completa</div>
+        <div class="test-button-desc">Simula partição de rede desconectando Europa, demonstra writes locais e reconexão com convergência.</div>
+        <div class="test-button-command">./scripts/demo-partition.sh</div>
+        <button class="test-button-run" onclick="copyCommand('./scripts/demo-partition.sh')">📋 Copiar Comando</button>
+      </div>
+
+      <div class="test-button-card" onclick="showCommand('./scripts/demo-partition-writes.sh')">
+        <div class="test-button-title">✍️ Writes Durante Partição</div>
+        <div class="test-button-desc">Demonstra que writes são aceitos localmente mesmo durante isolamento de rede.</div>
+        <div class="test-button-command">./scripts/demo-partition-writes.sh</div>
+        <button class="test-button-run" onclick="copyCommand('./scripts/demo-partition-writes.sh')">📋 Copiar Comando</button>
+      </div>
+
+      <div class="test-button-card" onclick="showCommand('./scripts/demo-reconnect.sh')">
+        <div class="test-button-title">🔄 Reconexão CRDT</div>
+        <div class="test-button-desc">Demonstra convergência automática após reconectar rede particionada - zero conflitos.</div>
+        <div class="test-button-command">./scripts/demo-reconnect.sh</div>
+        <button class="test-button-run" onclick="copyCommand('./scripts/demo-reconnect.sh')">📋 Copiar Comando</button>
+      </div>
+
+      <div class="test-button-card" onclick="showCommand('./scripts/demo-hll.sh')">
+        <div class="test-button-title">🎯 HyperLogLog</div>
+        <div class="test-button-desc">Demonstra contagem de usuários únicos com HLL - mesmo usuário, likes aumentam mas únicos não.</div>
+        <div class="test-button-command">./scripts/demo-hll.sh</div>
+        <button class="test-button-run" onclick="copyCommand('./scripts/demo-hll.sh')">📋 Copiar Comando</button>
+      </div>
+
+      <div class="test-button-card" onclick="showCommand('./scripts/demo-api-failure.sh')">
+        <div class="test-button-title">💥 Falha de API</div>
+        <div class="test-button-desc">Simula falha completa de nó API - sistema permanece disponível, Redis continua replicando.</div>
+        <div class="test-button-command">./scripts/demo-api-failure.sh</div>
+        <button class="test-button-run" onclick="copyCommand('./scripts/demo-api-failure.sh')">📋 Copiar Comando</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="regions-container" id="regions-container">
+    <!-- Regiões serão inseridas dinamicamente -->
+  </div>
+
+  <!-- Seção de IPs Ativos -->
+  <div class="ip-list-section">
+    <h2>📊 IPs Ativos por Microserviço</h2>
+    <div id="ip-stats-container">
+      <!-- Lista de IPs será inserida dinamicamente -->
+    </div>
+  </div>
+
+  <div class="last-update" id="last-update">
+    Última atualização: --
+  </div>
+
+  <div class="footer">
+    <p>🔄 Atualização automática a cada 1 segundo</p>
+    <p>Demonstração de Alta Disponibilidade e Consistência Eventual</p>
+  </div>
+
+  <script>
+    const regionNames = {
+      br: 'Brasil 🇧🇷',
+      eu: 'Europa 🇪🇺',
+      usa: 'EUA 🇺🇸'
+    };
+
+    async function fetchStats() {
+      try {
+        const response = await fetch('/stats');
+        const data = await response.json();
+        updateDashboard(data);
+      } catch (error) {
+        console.error('❌ Erro ao buscar estatísticas:', error);
+        showError();
+      }
+    }
+
+    function showError() {
+      const statusElement = document.getElementById('global-status');
+      statusElement.textContent = '❌ Erro de conexão';
+      statusElement.className = 'status-indicator status-offline';
+    }
+
+    function updateDashboard(data) {
+      const container = document.getElementById('regions-container');
+      container.innerHTML = '';
+
+      let onlineRegions = [];
+      let offlineCount = 0;
+      let values = [];
+
+      // Criar cards das regiões
+      for (const [key, stats] of Object.entries(data)) {
+        const isOffline = stats.likes === 'Offline';
+        
+        if (!isOffline) {
+          onlineRegions.push(key);
+          values.push(stats.likes);
+        } else {
+          offlineCount++;
+        }
+
+        const card = document.createElement('div');
+        card.className = `region-card ${isOffline ? 'offline' : ''}`;
+        card.innerHTML = `
+          <div class="region-header">
+            <div class="region-name">${regionNames[key]}</div>
+            <div class="region-status ${isOffline ? 'offline' : 'online'}"></div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Total de Likes</div>
+            <div class="stat-value ${isOffline ? 'offline-text' : ''}">${isOffline ? 'Offline' : stats.likes}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Usuários Únicos (estimativa)</div>
+            <div class="stat-value ${isOffline ? 'offline-text' : ''}">${isOffline ? 'N/A' : '~' + stats.uniques}</div>
+          </div>
+        `;
+        container.appendChild(card);
+      }
+
+      // Atualizar status global
+      const statusElement = document.getElementById('global-status');
+      
+      if (offlineCount > 0) {
+        const onlineCount = 3 - offlineCount;
+        statusElement.textContent = `⚠️ ${offlineCount} região(s) offline (${onlineCount} online)`;
+        statusElement.className = 'status-indicator status-offline';
+      } else if (values.length > 0) {
+        const allSame = values.every(v => v === values[0]);
+        if (allSame) {
+          statusElement.textContent = `✅ Convergido (${values[0]} likes)`;
+          statusElement.className = 'status-indicator status-converged';
+        } else {
+          const min = Math.min(...values);
+          const max = Math.max(...values);
+          statusElement.textContent = `🔄 Divergente (${min}-${max} likes)`;
+          statusElement.className = 'status-indicator status-divergent';
+        }
+      }
+
+      // Atualizar timestamp
+      const now = new Date().toLocaleTimeString('pt-BR');
+      document.getElementById('last-update').textContent = `Última atualização: ${now}`;
+    }
+
+    // Buscar e atualizar estatísticas de IPs
+    async function fetchIpStats() {
+      try {
+        const response = await fetch('/active-ips');
+        const data = await response.json();
+        updateIpStats(data);
+      } catch (error) {
+        console.error('❌ Erro ao buscar IPs ativos:', error);
+      }
+    }
+
+    function updateIpStats(data) {
+      const container = document.getElementById('ip-stats-container');
+      container.innerHTML = '';
+
+      for (const [key, regionData] of Object.entries(data)) {
+        const regionDiv = document.createElement('div');
+        regionDiv.className = 'ip-region';
+
+        const regionName = regionNames[key];
+        const isOffline = regionData.offline || false;
+        const ips = regionData.ips || [];
+
+        let content = `<h3>${regionName} - ${ips.length} IP(s) ativo(s)</h3>`;
+
+        if (isOffline) {
+          content += '<div class="no-ips">⚠️ API offline - não foi possível obter dados</div>';
+        } else if (ips.length === 0) {
+          content += '<div class="no-ips">Nenhum IP ativo nos últimos 5 minutos</div>';
+        } else {
+          content += `
+            <table class="ip-table">
+              <thead>
+                <tr>
+                  <th>IP</th>
+                  <th>Likes</th>
+                  <th>Última Atividade</th>
+                </tr>
+              </thead>
+              <tbody>
+          `;
+
+          ips.forEach(ip => {
+            const lastSeen = new Date(ip.lastSeen);
+            const timeDiff = Math.floor((Date.now() - lastSeen.getTime()) / 1000);
+            const timeAgo = timeDiff < 60 
+              ? `${timeDiff}s atrás` 
+              : `${Math.floor(timeDiff / 60)}min atrás`;
+
+            content += `
+              <tr>
+                <td><code>${ip.ip}</code></td>
+                <td><span class="ip-badge">${ip.likes} like${ip.likes !== 1 ? 's' : ''}</span></td>
+                <td>${timeAgo}</td>
+              </tr>
+            `;
+          });
+
+          content += `
+              </tbody>
+            </table>
+          `;
+        }
+
+        regionDiv.innerHTML = content;
+        container.appendChild(regionDiv);
+      }
+    }
+
+    // Polling a cada 1 segundo para stats
+    fetchStats();
+    setInterval(fetchStats, 1000);
+
+    // Polling a cada 3 segundos para IPs (menos frequente)
+    fetchIpStats();
+    setInterval(fetchIpStats, 3000);
+
+    // Funções para botões de teste
+    function showCommand(command) {
+      // Destacar visualmente o comando (feedback visual)
+      const cards = document.querySelectorAll('.test-button-card');
+      cards.forEach(card => card.style.transform = 'translateY(0)');
+      
+      event.currentTarget.style.transform = 'translateY(-3px)';
+      setTimeout(() => {
+        event.currentTarget.style.transform = 'translateY(0)';
+      }, 200);
+    }
+
+    function copyCommand(command) {
+      event.stopPropagation(); // Evitar que o click no card também seja executado
+      
+      navigator.clipboard.writeText(command).then(() => {
+        // Feedback visual de cópia
+        const button = event.target;
+        const originalText = button.textContent;
+        button.textContent = '✅ Copiado!';
+        button.style.background = '#059669';
+        
+        setTimeout(() => {
+          button.textContent = originalText;
+          button.style.background = '#10b981';
+        }, 2000);
+      }).catch(err => {
+        console.error('Erro ao copiar:', err);
+        // Fallback para navegadores que não suportam clipboard API
+        const textArea = document.createElement('textarea');
+        textArea.value = command;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        const button = event.target;
+        button.textContent = '✅ Copiado!';
+        button.style.background = '#059669';
+        setTimeout(() => {
+          button.textContent = '📋 Copiar Comando';
+          button.style.background = '#10b981';
+        }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>
